@@ -109,10 +109,11 @@ export class HUD {
     const ctx = c.getContext('2d');
     const S = c.width, k = S / WORLD;
     ctx.clearRect(0, 0, S, S);
-    // Sea + sand.
-    ctx.fillStyle = '#2f7fb8'; ctx.fillRect(0, 0, S, S);
+    // Ground first, then the beach strip and the sea on the east edge —
+    // painting the sea first would bury it under the ground fill.
     ctx.fillStyle = '#b8a06a'; ctx.fillRect(0, 0, S, S);
     ctx.fillStyle = '#ecd9a0'; ctx.fillRect(3300 * k, 0, 300 * k, S);
+    ctx.fillStyle = '#2f7fb8'; ctx.fillRect(3520 * k, 0, 80 * k, S);
     // Park.
     ctx.fillStyle = '#5da24a'; ctx.fillRect(1548 * k, 1548 * k, 304 * k, 304 * k);
     // Roads.

@@ -12,7 +12,7 @@ export function applyShot(game, name) {
   const police = game.police;
   const missions = game.missions;
   const putInCar = (x, y, angle, color, carName) => {
-    const car = new Car(x, y, angle, { color, name: carName || 'Comet', maxSpeed: 560 });
+    const car = new Car(x, y, angle, { color, name: carName || 'Comet', maxSpeed: 560, hp: 900 });
     car.driver = 'player';
     game.cars.push(car);
     p.car = car;
@@ -22,7 +22,9 @@ export function applyShot(game, name) {
   };
   const spawnChasers = (n) => {
     for (let i = 0; i < n; i++) {
-      const cop = new Car(p.x - 150 - i * 70, p.y + (i % 2 === 0 ? -30 : 30), 0, {
+      // Start a little farther back so the chase reads as a pursuit, not a
+      // pile-up, and the player's car survives the screenshot window.
+      const cop = new Car(p.x - 230 - i * 90, p.y + (i % 2 === 0 ? -40 : 40), 0, {
         color: '#1c2733', name: 'Interceptor', isPolice: true, maxSpeed: 660, accel: 480,
       });
       cop.driver = 'police';
@@ -44,7 +46,7 @@ export function applyShot(game, name) {
     missions.completed = 2;
     missions.startNext(); // sets wanted 2, marker at the Safehouse
     game.hud.hideDialogue(); // keep the chase frame clear of the briefing
-    police.addHeat(110, 'chase'); // 3 stars for the shot
+    police.addHeat(160, 'chase'); // 3 stars for the shot (heat decays a little first)
     spawnChasers(3);
     game.autopilot = { mode: 'drive' };
     game.shotZoom = 1.2;
