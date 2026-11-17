@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOLMAR — Open City Crime</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0c0f16;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---- HUD ---- */
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; display: none; }
+  #hud.on { display: block; }
+  .panel { background: rgba(8, 12, 20, 0.62); border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 10px; backdrop-filter: blur(2px); }
+  #topleft { position: absolute; top: 14px; left: 14px; padding: 10px 14px; min-width: 210px; }
+  #wanted { font-size: 22px; letter-spacing: 3px; line-height: 1; color: #ffd23e;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8); }
+  #wanted .off { color: rgba(255,255,255,0.25); }
+  #healthrow { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+  #healthbar { flex: 1; height: 12px; background: rgba(255,255,255,0.18); border-radius: 6px; overflow: hidden; }
+  #healthfill { height: 100%; width: 100%; background: linear-gradient(90deg, #37d67a, #a5e635); border-radius: 6px; }
+  #healthfill.low { background: linear-gradient(90deg, #ef4444, #f97316); }
+  #cash { margin-top: 8px; font-size: 20px; font-weight: 700; color: #7ee787; text-shadow: 0 1px 2px #000; }
+  #cash small { color: #c9d4e3; font-weight: 400; font-size: 12px; }
+  #speedo { margin-top: 6px; font-size: 13px; color: #dbe7f5; }
+  #minimapWrap { position: absolute; top: 14px; right: 14px; padding: 6px; }
+  #minimap { display: block; border-radius: 6px; }
+  #maplabel { text-align: center; font-size: 11px; letter-spacing: 2px; color: #ffd23e; padding-top: 4px; font-weight: 700; }
+  #objective { position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    padding: 9px 18px; text-align: center; max-width: 46vw; }
+  #objective .mtitle { font-size: 12px; letter-spacing: 2px; color: #ffd23e; font-weight: 700; }
+  #objective .mtext { font-size: 15px; font-weight: 600; margin-top: 2px; }
+  #objective .mtimer { font-size: 15px; font-weight: 700; color: #ff8a5c; margin-top: 2px; }
+  #hint { position: absolute; bottom: 14px; left: 14px; padding: 8px 12px; font-size: 12.5px; color: #dbe7f5; line-height: 1.55; }
+  #hint b { color: #fff; background: rgba(255,255,255,0.16); border-radius: 4px; padding: 0 5px; }
+  #toast { position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px; font-size: 17px; font-weight: 700; text-align: center; display: none; }
+  #toast.show { display: block; }
+  #dialogue { position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%);
+    width: min(620px, 80vw); padding: 14px 18px; display: none; }
+  #dialogue.show { display: block; }
+  #dialogue .who { color: #ffd23e; font-weight: 700; font-size: 13px; letter-spacing: 1px; }
+  #dialogue .line { font-size: 16px; margin-top: 4px; line-height: 1.45; }
+  #crosshair { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+    border: 2px solid rgba(255,255,255,0.85); border-radius: 50%; display: none;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.6); pointer-events: none; }
+  #crosshair::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px;
+    margin: -1.5px 0 0 -1.5px; background: #ffd23e; border-radius: 50%; }
+
+  /* ---- Screens (title / pause / dead / busted) ---- */
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, rgba(6,10,24,0.88), rgba(20,8,28,0.82)); color: #fff; z-index: 10; }
+  .screen.on { display: flex; }
+  .card { text-align: center; max-width: 640px; padding: 34px 44px; }
+  .kicker { letter-spacing: 5px; font-size: 13px; color: #ffd23e; font-weight: 700; }
+  h1.title { font-size: 76px; margin: 6px 0 0; letter-spacing: 6px; line-height: 0.95;
+    background: linear-gradient(180deg, #fff6c9, #ffb020 55%, #ff5e3a); -webkit-background-clip: text;
+    background-clip: text; color: transparent; text-shadow: 0 6px 30px rgba(255,120,40,0.25); }
+  .subtitle { font-size: 17px; color: #dbe7f5; margin-top: 10px; line-height: 1.5; }
+  .story { font-size: 14.5px; color: #b9c6d8; margin-top: 16px; line-height: 1.6; text-align: left; }
+  .btnrow { margin-top: 26px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  button { pointer-events: auto; cursor: pointer; font: inherit; font-size: 16px; font-weight: 700;
+    color: #14100a; background: linear-gradient(180deg, #ffd94d, #ff9d1e); border: none;
+    border-radius: 10px; padding: 13px 26px; box-shadow: 0 4px 0 #a35c00, 0 8px 24px rgba(0,0,0,0.45); }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #a35c00; }
+  button.ghost { background: rgba(255,255,255,0.12); color: #fff; box-shadow: none;
+    border: 1px solid rgba(255,255,255,0.35); }
+  .controls { margin-top: 22px; font-size: 13px; color: #9fb0c6; line-height: 1.9; text-align: left;
+    display: inline-block; }
+  .controls b { color: #fff; background: rgba(255,255,255,0.14); border-radius: 4px; padding: 1px 6px; }
+  .big { font-size: 64px; font-weight: 800; letter-spacing: 4px; margin: 0; }
+  .big.red { color: #ff5a4e; } .big.blue { color: #6db3ff; }
+  .statline { font-size: 15px; color: #dbe7f5; margin-top: 12px; line-height: 1.7; }
+  #saveNote { margin-top: 14px; font-size: 12.5px; color: #8fa1b8; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="SOLMAR: an open-world crime game. Drive, steal cars, run missions, evade the police."></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud">
+  <div id="topleft" class="panel">
+    <div id="wanted" aria-label="wanted level"></div>
+    <div id="healthrow"><span>HP</span><div id="healthbar"><div id="healthfill"></div></div></div>
+    <div id="cash"></div>
+    <div id="speedo"></div>
+  </div>
+  <div id="minimapWrap" class="panel"><canvas id="minimap" width="220" height="220"></canvas><div id="maplabel">SOLMAR</div></div>
+  <div id="objective" class="panel"><div class="mtitle" id="objTitle"></div><div class="mtext" id="objText"></div><div class="mtimer" id="objTimer"></div></div>
+  <div id="hint"></div>
+  <div id="toast" class="panel"></div>
+  <div id="dialogue" class="panel"><div class="who" id="dlgWho"></div><div class="line" id="dlgLine"></div></div>
+  <div id="crosshair"></div>
+</div>
+
+<div id="titleScreen" class="screen on">
+  <div class="card">
+    <div class="kicker">AN OPEN-WORLD CRIME GAME</div>
+    <h1 class="title">SOLMAR</h1>
+    <div class="subtitle">Sun, sea, sirens. One city, no rules — except the ones you break.</div>
+    <div class="story">You are <b style="color:#fff">Dario Cruz</b>, a wheelman fresh out of the county lockup.
+      Fixer <b style="color:#fff">Mara Solis</b> has work for you across Solmar — deliveries, repos,
+      races and one very big score. Steal any car, outrun the Solmar PD, and climb from street nobody
+      to the name every crew in the city wants on their job.</div>
+    <div class="btnrow">
+      <button id="btnContinue" style="display:none">CONTINUE</button>
+      <button id="btnNew">NEW GAME</button>
+      <button id="btnHow" class="ghost">HOW TO PLAY</button>
+    </div>
+    <div class="controls" id="howto" style="display:none">
+      <b>W A S D</b> move / drive &nbsp; <b>Mouse</b> aim &nbsp; <b>Click</b> shoot &nbsp; <b>E</b> enter / exit car<br>
+      <b>Space</b> handbrake &nbsp; <b>F</b> punch &nbsp; <b>Shift</b> sprint &nbsp; <b>Esc</b> pause &nbsp; <b>M</b> mute<br>
+      Steal cars, follow the yellow marker, watch the wanted stars — lose the cops to cool off.
+    </div>
+    <div id="saveNote"></div>
+  </div>
+</div>
+
+<div id="pauseScreen" class="screen">
+  <div class="card">
+    <div class="kicker">PAUSED</div>
+    <h1 class="title" style="font-size:52px">SOLMAR</h1>
+    <div class="statline" id="pauseStats"></div>
+    <div class="btnrow">
+      <button id="btnResume">RESUME</button>
+      <button id="btnSave" class="ghost">SAVE GAME</button>
+      <button id="btnQuit" class="ghost">QUIT TO TITLE</button>
+    </div>
+    <div class="controls"><b>W A S D</b> move / drive &nbsp; <b>E</b> enter / exit car &nbsp; <b>Click</b> shoot &nbsp; <b>Esc</b> resume</div>
+  </div>
+</div>
+
+<div id="deadScreen" class="screen">
+  <div class="card">
+    <div class="kicker">SOLMAR PD</div>
+    <p class="big red">WASTED</p>
+    <div class="statline" id="deadStats"></div>
+    <div class="btnrow"><button id="btnRespawn">GET UP — HOSPITAL</button></div>
+  </div>
+</div>
+
+<div id="bustedScreen" class="screen">
+  <div class="card">
+    <div class="kicker">SOLMAR PD</div>
+    <p class="big blue">BUSTED</p>
+    <div class="statline" id="bustedStats"></div>
+    <div class="btnrow"><button id="btnRelease">POST BAIL — $200</button></div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
